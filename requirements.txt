@@ -3,3 +3,9 @@ Pillow
 tensorflow
 openai
 transformers
+torch 
+torchvision
+clip
+ftfy 
+regex 
+tqdm
