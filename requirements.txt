@@ -1,6 +1,7 @@
 streamlit
 Pillow
 tensorflow
+opencv-python
 openai
 transformers
 torch 
@@ -9,3 +10,5 @@ clip
 ftfy 
 regex 
 tqdm
+faiss-cpu
+supervision
