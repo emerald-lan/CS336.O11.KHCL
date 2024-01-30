@@ -57,6 +57,7 @@ def main():
     checkpoint_path = "tuned_clip_best.pt"
     clip_model = torch.load(checkpoint_path)
     clip_model.eval()
+    feature_dim = clip_model.visual.output_dim
     preprocess = targetpad_transform(1.25, clip_model.visual.input_resolution)
 
     # extract and save cirr features
