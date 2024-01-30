@@ -7,11 +7,14 @@ from tqdm import tqdm
 import clip
 from torchvision.transforms import functional as F
 from transformers import CLIPProcessor, CLIPModel
+from streamlit_image_select import image_select
 
 import os
 import requests
 from zipfile import ZipFile
 from io import BytesIO
+import gdown
+import rarfile
 
 # Hide the streamlit hamburger and footer
 st.markdown("""
@@ -41,114 +44,94 @@ st.markdown("""
 #     return image
 
 def download_dataset():
+    dataset_name = "splited_fashionIQ"  # Replace with your desired dataset folder name
+    folder_path = "./"
+    dataset_url = 'https://drive.google.com/file/d/1B_ahBg0B7nUJE2dYROxdpXpqicMfcyu7/view?usp=sharing'
+    rar_path = "splited_fashionIQ.rar"
+    extract_path = os.path.join(folder_path, dataset_name)
+
+    # Check if the folder already exists
+    if os.path.exists(extract_path):     
+        return
+    
     st.text("Downloading the dataset. Please wait...")
-
-    # Replace the following URL with the actual download link for your dataset
-    dataset_url = "<your_dataset_download_link>"
-    response = requests.get(dataset_url, stream=True)
-
-    # Get total file size from the Content-Length header
-    total_size = int(response.headers.get("content-length", 0))
-
-    # Create a progress bar
-    progress_bar = st.progress(0)
-
-    # Create a BytesIO object to store downloaded data
-    buffer = BytesIO()
-
-    with tqdm(total=total_size, unit="B", unit_scale=True) as pbar:
-        for data in response.iter_content(chunk_size=1024):
-            buffer.write(data)
-            pbar.update(len(data))
-            # Update the Streamlit progress bar
-            progress_bar.progress(buffer.tell() / total_size)
-
+    gdown.download(dataset_url, 'splited_fashionIQ.rar', quiet=False, fuzzy=True)
     st.success("Download completed.")
 
-    # Extract the downloaded ZIP file
-    with ZipFile(buffer, "r") as zip_ref:
-        zip_ref.extractall(folder_path)
+    # Extract the downloaded RAR file
+    with rarfile.RarFile(rar_path, 'r') as rf:
+        rf.extractall(extract_path)
 
-    st.success("Extraction completed.")
+    # Remove the downloaded RAR file
+    os.remove(rar_path)
 
-def display_images(folder_path, num_images_per_row=10):
+    st.success(f"Extraction completed. Path = {folder_path}")
+
+def load_first_images(folder_path):
     # Đọc danh sách tất cả các tệp hình ảnh trong thư mục
-    image_files = [f for f in os.listdir(folder_path) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
+    image_files = [f for f in os.listdir(folder_path) if f.lower().endswith(('.png', '.jpg'))]
 
     # Lấy danh sách 50 ảnh đầu tiên
-    selected_images = image_files[:50]
-
-    # Số dòng và số cột
-    num_rows = len(selected_images) // num_images_per_row
-    num_columns = num_images_per_row
-
-    # Kích thước ảnh
-    image_size = (100, 100)
-
-    # Tạo một hình ảnh mới để vẽ khung
-    result_image = Image.new('RGB', (num_columns * (image_size[0] + 10), num_rows * (image_size[1] + 10)), color='white')
-    draw = ImageDraw.Draw(result_image)
-
-    # Vị trí hiện tại của ảnh trong danh sách
-    current_index = 0
-
-    # Vẽ khung và chèn ảnh vào hình ảnh kết quả
-    for row in range(num_rows):
-        for col in range(num_columns):
-            if current_index >= len(selected_images):
-                break
-
-            # Đọc ảnh
-            image_path = os.path.join(folder_path, selected_images[current_index])
-            img = Image.open(image_path)
-
-            # Vẽ khung cho ảnh
-            draw.rectangle([col * (image_size[0] + 10), row * (image_size[1] + 10),
-                            (col + 1) * (image_size[0] + 10) - 10, (row + 1) * (image_size[1] + 10) - 10],
-                           outline='green', width=10)
-
-            # Chèn ảnh vào hình ảnh kết quả
-            result_image.paste(img, (col * (image_size[0] + 10), row * (image_size[1] + 10)))
-
-            current_index += 1
-
-    return result_image
-
+    selected_images_files = image_files[:20]
+    images = []
+    images_name = []
+    for image_file in selected_images_files:
+        image_path = os.path.join(folder_path, image_file)
+        image = Image.open(image_path)
+        images.append(image)
+        images_name.append(image_file)
+        
+    return images, images_name
 
 # Streamlit app
 def main():
-    st.title("Mineral Fashion Image Retrieval System")
+    download_dataset()
     
-    uploaded_image = st.file_uploader("Please upload your query image!", type=["jpg", "png"])
-    text_input = st.text_input("Enter a description for retrieval", max_chars=50)
-    search_btt = st.button(label="Search")
+    query_image = None
+    source = True
+    
+    st.title("Mineral Fashion Image Retrieval System")   
+    images, images_name = load_first_images("splited_fashionIQ/test")
+    
+    # Adđ select box to choose whether using uploaded images or recommended ones
+    selected_image_source = st.selectbox("Select image source:", ["Upload", "Recommended gallery"])
+    
+    if selected_image_source == "Upload":            
+        uploaded_image = st.file_uploader("Please upload your query image!", type=["jpg", "png"])
+        query_image = uploaded_image
+        
+    elif selected_image_source == "Recommended gallery": 
+        img = image_select(
+            label = "OR Choose one",
+            images = images,
+            captions = images_name, 
+            use_container_width=False
+        )          
+        query_image = img
+        source = False
 
-    if uploaded_image is not None:
-        st.image(uploaded_image)
-        image = Image.open(uploaded_image)
+    if query_image is not None:
+        if(source):
+            st.write("Querry image: ")
+            st.image(query_image, width=300)    
+        else:
+            st.markdown("---")
+            st.write("Querry image: " + os.path.basename(query_image.filename))
+            
+        text_input = st.text_input("Enter a description for retrieval", max_chars=50)
+        search_btt = st.button(label="Search")
+        
+        # image = Image.open(uploaded_image)
         # processed_image = preprocess_image(image)
-   
-    if search_btt:
-        # Check if text_input is empty
-        if not text_input.strip():
-            st.error("Error: Description cannot be empty. Please enter a description.")     
-    else:
-        display_images("images")    
+            
+        if search_btt:
+            # Check if text_input is empty
+            if not text_input.strip():
+                st.error("Error: Description cannot be empty. Please enter a description.")     
+            else:
+                # display_images("images")  
+                st.error("200 OK")       
                 
-        # Perform image retrieval
-        # if st.button("Retrieve Images"):
-        #     # Encode text
-        #     text_encoding = processor(text_input, return_tensors="pt")["input_ids"]
-
-        #     # Forward pass for image and text
-        #     with torch.no_grad():
-        #         image_encoding = model(pixel_values=processed_image).last_hidden_state[:, 0, :]
-        #         text_encoding = model(**processor(text_input, return_tensors="pt")).last_hidden_state[:, 0, :]
-
-        #     # Perform retrieval based on similarity (you need to implement your own retrieval logic here)
-        #     # For simplicity, let's just print the encoded vectors for now
-        #     st.write("Image Encoding:", image_encoding.numpy())
-        #     st.write("Text Encoding:", text_encoding.numpy())
 
 if __name__ == "__main__":
     main()
