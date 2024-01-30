@@ -1,8 +1,20 @@
 import streamlit as st
 import torch
 from PIL import Image
+import cv2
+import torch
+from tqdm import tqdm
+import clip
 from torchvision.transforms import functional as F
 from transformers import CLIPProcessor, CLIPModel
+from streamlit_image_select import image_select
+
+import os
+import requests
+from zipfile import ZipFile
+from io import BytesIO
+import gdown
+import rarfile
 
 # Hide the streamlit hamburger and footer
 st.markdown("""
@@ -25,45 +37,102 @@ st.markdown("""
 
 # # Function to preprocess input image
 # def preprocess_image(image):
-#     # Resize image to CLIP model's expected size
 #     image = image.resize((224, 224))
-#     # Convert PIL image to PyTorch tensor
 #     image = F.to_tensor(image)
-#     # Normalize image
 #     image = F.normalize(image, mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
-#     # Add batch dimension
 #     image = image.unsqueeze(0)
 #     return image
 
-# # Streamlit app
-# def main():
-#     st.title("Image Retrieval with CLIP")
+def download_dataset():
+    dataset_name = "splited_fashionIQ"  # Replace with your desired dataset folder name
+    folder_path = "./"
+    dataset_url = 'https://drive.google.com/file/d/1B_ahBg0B7nUJE2dYROxdpXpqicMfcyu7/view?usp=sharing'
+    rar_path = "splited_fashionIQ.rar"
+    extract_path = os.path.join(folder_path, dataset_name)
 
-#     # Upload image through Streamlit
-#     uploaded_image = st.file_uploader("Choose an image...", type="jpg")
+    # Check if the folder already exists
+    if os.path.exists(extract_path):     
+        return
+    
+    st.text("Downloading the dataset. Please wait...")
+    gdown.download(dataset_url, 'splited_fashionIQ.rar', quiet=False, fuzzy=True)
+    st.success("Download completed.")
 
-#     if uploaded_image is not None:
-#         # Preprocess uploaded image
-#         image = Image.open(uploaded_image)
-#         processed_image = preprocess_image(image)
+    # Extract the downloaded RAR file
+    with rarfile.RarFile(rar_path, 'r') as rf:
+        rf.extractall(extract_path)
 
-#         # Text input
-#         text_input = st.text_input("Enter a description for retrieval:")
+    # Remove the downloaded RAR file
+    os.remove(rar_path)
 
-#         # Perform image retrieval
-#         if st.button("Retrieve Images"):
-#             # Encode text
-#             text_encoding = processor(text_input, return_tensors="pt")["input_ids"]
+    st.success(f"Extraction completed. Path = {folder_path}")
 
-#             # Forward pass for image and text
-#             with torch.no_grad():
-#                 image_encoding = model(pixel_values=processed_image).last_hidden_state[:, 0, :]
-#                 text_encoding = model(**processor(text_input, return_tensors="pt")).last_hidden_state[:, 0, :]
+def load_first_images(folder_path):
+    # Đọc danh sách tất cả các tệp hình ảnh trong thư mục
+    image_files = [f for f in os.listdir(folder_path) if f.lower().endswith(('.png', '.jpg'))]
 
-#             # Perform retrieval based on similarity (you need to implement your own retrieval logic here)
-#             # For simplicity, let's just print the encoded vectors for now
-#             st.write("Image Encoding:", image_encoding.numpy())
-#             st.write("Text Encoding:", text_encoding.numpy())
+    # Lấy danh sách 50 ảnh đầu tiên
+    selected_images_files = image_files[:20]
+    images = []
+    images_name = []
+    for image_file in selected_images_files:
+        image_path = os.path.join(folder_path, image_file)
+        image = Image.open(image_path)
+        images.append(image)
+        images_name.append(image_file)
+        
+    return images, images_name
 
-# if __name__ == "__main__":
-#     main()
+# Streamlit app
+def main():
+    download_dataset()
+    
+    query_image = None
+    source = True
+    
+    st.title("Mineral Fashion Image Retrieval System")   
+    images, images_name = load_first_images("splited_fashionIQ/test")
+    
+    # Adđ select box to choose whether using uploaded images or recommended ones
+    selected_image_source = st.selectbox("Select image source:", ["Upload", "Recommended gallery"])
+    
+    if selected_image_source == "Upload":            
+        uploaded_image = st.file_uploader("Please upload your query image!", type=["jpg", "png"])
+        query_image = uploaded_image
+        
+    elif selected_image_source == "Recommended gallery": 
+        img = image_select(
+            label = "OR Choose one",
+            images = images,
+            captions = images_name, 
+            use_container_width=False
+        )          
+        query_image = img
+        source = False
+
+    if query_image is not None:
+        if(source):
+            st.write("Querry image: ")
+            st.image(query_image, width=300)    
+        else:
+            st.markdown("---")
+            st.write("Querry image: " + os.path.basename(query_image.filename))
+            
+        text_input = st.text_input("Enter a description for retrieval", max_chars=50)
+        search_btt = st.button(label="Search")
+        
+        # image = Image.open(uploaded_image)
+        # processed_image = preprocess_image(image)
+            
+        if search_btt:
+            # Check if text_input is empty
+            if not text_input.strip():
+                st.error("Error: Description cannot be empty. Please enter a description.")     
+            else:
+                # display_images("images")  
+                st.error("200 OK")       
+                
+
+if __name__ == "__main__":
+    main()
+

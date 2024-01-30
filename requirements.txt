@@ -1,5 +1,14 @@
 streamlit
 Pillow
 tensorflow
+opencv-python
 openai
 transformers
+torch 
+torchvision
+clip
+ftfy 
+regex 
+tqdm
+faiss-cpu
+supervision
