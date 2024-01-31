@@ -31,17 +31,17 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# # Load pre-trained CLIP model and processor
-# model = CLIPModel.from_pretrained("openai/clip-vit-base-patch16")
-# processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch16")
+# Load pre-trained CLIP model and processor
+model = CLIPModel.from_pretrained("openai/clip-vit-base-patch16")
+processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch16")
 
-# # Function to preprocess input image
-# def preprocess_image(image):
-#     image = image.resize((224, 224))
-#     image = F.to_tensor(image)
-#     image = F.normalize(image, mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
-#     image = image.unsqueeze(0)
-#     return image
+# Function to preprocess input image
+def preprocess_image(image):
+    image = image.resize((224, 224))
+    image = F.to_tensor(image)
+    image = F.normalize(image, mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+    image = image.unsqueeze(0)
+    return image
 
 def download_dataset():
     dataset_name = "splited_fashionIQ"  # Replace with your desired dataset folder name
@@ -83,6 +83,15 @@ def load_first_images(folder_path):
         
     return images, images_name
 
+def display_images(label: str, images: list, images_name: list, use_container_width=False):
+    img = image_select(
+            label = label,
+            images = images,
+            captions = images_name, 
+            use_container_width=False
+        )          
+    return img
+
 # Streamlit app
 def main():
     download_dataset()
@@ -101,22 +110,17 @@ def main():
         query_image = uploaded_image
         
     elif selected_image_source == "Recommended gallery": 
-        img = image_select(
-            label = "OR Choose one",
-            images = images,
-            captions = images_name, 
-            use_container_width=False
-        )          
+        img = display_images("OR Choose one", images, images_name)
         query_image = img
         source = False
 
     if query_image is not None:
         if(source):
-            st.write("Querry image: ")
+            query_image = Image.open(uploaded_image)
             st.image(query_image, width=300)    
         else:
-            st.markdown("---")
-            st.write("Querry image: " + os.path.basename(query_image.filename))
+            st.markdown("---") 
+            st.write("Query image: " + os.path.basename(query_image.filename))
             
         text_input = st.text_input("Enter a description for retrieval", max_chars=50)
         search_btt = st.button(label="Search")
