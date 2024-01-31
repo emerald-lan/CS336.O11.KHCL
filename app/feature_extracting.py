@@ -1,6 +1,6 @@
 import torch
 from PIL import Image
-from load_clip import load_clip_model
+from .load_clip import load_clip_model
 from typing import List
 import numpy as np
 
