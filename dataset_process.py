@@ -8,6 +8,8 @@ from PIL import Image
 from typing import List
 import shutil
 from utils.indexer import VectorIndexer
+import warnings
+warnings.filterwarnings('ignore')
 
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -46,6 +48,7 @@ def process_batch(i: int, batch_files: List[str], batch_features_path: Path) -> 
 def remove_batch_features(batch_features_path: Path) -> None:
     if batch_features_path.exists() and batch_features_path.is_dir():
         shutil.rmtree(batch_features_path)
+    print('Unused batch features folder removed')
 
 
 def main():
@@ -63,12 +66,11 @@ def main():
     for i in range(batches):
         print(f"Processing batch {i+1}/{batches}")
 
-        if not batch_features_path.exists():
-            try:
-                batch_files = val_images_files[i*batch_size : (i+1)*batch_size]
-                process_batch(i, batch_files, batch_features_path)
-            except:
-                print(f'Problem with batch {i}')
+        try:
+            batch_files = val_images_files[i*batch_size : (i+1)*batch_size]
+            process_batch(i, batch_files, batch_features_path)
+        except:
+            print(f'Problem with batch {i}')
 
     features_list = [np.load(file) for file in sorted(batch_features_path.glob("*.npy"))]
     features = np.concatenate(features_list).astype(np.float32) # (n_images, 1024)
@@ -81,13 +83,12 @@ def main():
     images_ids.to_csv(images_ids_file, index=False)
     print(f"Images ids saved in {Path('data') / 'images_ids.csv'}")
 
-    remove_batch_features(batch_features_path)
-
     index = VectorIndexer(features_file, images_ids_file)
     index.build_index()
     index.save_index(Path("data") / "dataset.index")
     print(f"Index saved in {Path('data') / 'dataset.index'}")
 
+    remove_batch_features(batch_features_path)
 
 if __name__ == '__main__':
     main()

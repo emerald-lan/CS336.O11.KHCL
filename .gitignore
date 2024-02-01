@@ -163,4 +163,3 @@ cython_debug/
 splited_fashionIQ/
 data/
 finetuned_RN50.pt
-index_features.index

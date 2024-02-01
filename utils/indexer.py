@@ -21,10 +21,10 @@ class VectorIndexer:
         print(f"The index contains {index.ntotal} vectors.")
     
     def save_index(self, index_path: Path) -> None:
-        faiss.write_index(self.index, index_path)
+        faiss.write_index(self.index, str(index_path))
 
     def load_index(self, index_path: Path) -> None:
-        self.index = faiss.read_index(index_path)
+        self.index = faiss.read_index(str(index_path))
 
     def search(self, query_features: np.ndarray, k: int) -> List[dict]:
         distances, indices = self.index.search(query_features, k)
