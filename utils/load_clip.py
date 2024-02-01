@@ -2,7 +2,7 @@ import clip
 import torch
 from PIL import Image
 from typing import Tuple, List
-from .data_preprocessing import targetpad_transform
+from .preprocessing import targetpad_transform
 
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
