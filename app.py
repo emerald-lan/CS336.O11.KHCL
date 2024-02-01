@@ -16,6 +16,8 @@ from io import BytesIO
 import gdown
 import rarfile
 
+from setup import main as download_files
+
 # Hide the streamlit hamburger and footer
 st.markdown("""
 <style>
@@ -30,42 +32,29 @@ st.markdown("""
 <\style>
 """, unsafe_allow_html=True)
 
+# def download_dataset():
+#     dataset_name = "splited_fashionIQ"  # Replace with your desired dataset folder name
+#     folder_path = "./data"
+#     dataset_url = 'https://drive.google.com/file/d/1B_ahBg0B7nUJE2dYROxdpXpqicMfcyu7/view?usp=sharing'
+#     rar_path = "splited_fashionIQ.rar"
+#     extract_path = os.path.join(folder_path, dataset_name)
 
-# Load pre-trained CLIP model and processor
-model = CLIPModel.from_pretrained("openai/clip-vit-base-patch16")
-processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch16")
-
-# Function to preprocess input image
-def preprocess_image(image):
-    image = image.resize((224, 224))
-    image = F.to_tensor(image)
-    image = F.normalize(image, mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
-    image = image.unsqueeze(0)
-    return image
-
-def download_dataset():
-    dataset_name = "splited_fashionIQ"  # Replace with your desired dataset folder name
-    folder_path = "./"
-    dataset_url = 'https://drive.google.com/file/d/1B_ahBg0B7nUJE2dYROxdpXpqicMfcyu7/view?usp=sharing'
-    rar_path = "splited_fashionIQ.rar"
-    extract_path = os.path.join(folder_path, dataset_name)
-
-    # Check if the folder already exists
-    if os.path.exists(extract_path):     
-        return
+#     # Check if the folder already exists
+#     if os.path.exists(extract_path):     
+#         return
     
-    st.text("Downloading the dataset. Please wait...")
-    gdown.download(dataset_url, 'splited_fashionIQ.rar', quiet=False, fuzzy=True)
-    st.success("Download completed.")
+#     st.text("Downloading the dataset. Please wait...")
+#     gdown.download(dataset_url, 'splited_fashionIQ.rar', quiet=False, fuzzy=True)
+#     st.success("Download completed.")
 
-    # Extract the downloaded RAR file
-    with rarfile.RarFile(rar_path, 'r') as rf:
-        rf.extractall(extract_path)
+#     # Extract the downloaded RAR file
+#     with rarfile.RarFile(rar_path, 'r') as rf:
+#         rf.extractall(extract_path)
 
-    # Remove the downloaded RAR file
-    os.remove(rar_path)
+#     # Remove the downloaded RAR file
+#     os.remove(rar_path)
 
-    st.success(f"Extraction completed. Path = {folder_path}")
+#     st.success(f"Extraction completed. Path = {folder_path}")
 
 def load_first_images(folder_path):
     # Đọc danh sách tất cả các tệp hình ảnh trong thư mục
@@ -93,14 +82,12 @@ def display_images(label: str, images: list, images_name: list, use_container_wi
     return img
 
 # Streamlit app
-def main():
-    download_dataset()
-    
+def main():   
     query_image = None
     source = True
     
     st.title("Mineral Fashion Image Retrieval System")   
-    images, images_name = load_first_images("splited_fashionIQ/test")
+    images, images_name = load_first_images("data/splited_fashionIQ/test")
     
     # Adđ select box to choose whether using uploaded images or recommended ones
     selected_image_source = st.selectbox("Select image source:", ["Upload", "Recommended gallery"])
@@ -125,9 +112,7 @@ def main():
         text_input = st.text_input("Enter a description for retrieval", max_chars=50)
         search_btt = st.button(label="Search")
         
-        # image = Image.open(uploaded_image)
-        # processed_image = preprocess_image(image)
-            
+
         if search_btt:
             # Check if text_input is empty
             if not text_input.strip():

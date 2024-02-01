@@ -16,6 +16,7 @@ def download_files():
     extract_path = os.path.join(folder_path, dataset_name)
     finetune_path = os.path.join(folder_path, finetune_name)
 
+    st.write("Loading files...")
     # Check if the folder already exists
     if not os.path.exists(finetune_path):     
         gdown.download(finetune_url, finetune_path, quiet=False, fuzzy=True)
@@ -33,7 +34,7 @@ def download_files():
 
         print(f"Extraction completed. Path = {folder_path}")
         
-    print("Everything is downloaded!")
+    st.write("Everything is downloaded!")
     
 def main():
     download_files()
