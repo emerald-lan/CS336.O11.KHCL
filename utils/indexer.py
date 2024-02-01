@@ -10,7 +10,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 class VectorIndexer:
     def __init__(self, features_file: Path, images_ids_file: Path) -> None:
         self.features = np.load(features_file)
-        self.images_ids = pd.read_csv(images_ids_file, names=['image_id'])
+        self.images_ids = pd.read_csv(images_ids_file)
         self.index = None
     
     def build_index(self) -> None:
@@ -31,7 +31,7 @@ class VectorIndexer:
 
         return [
             {
-                "image": self.image_ids.iloc[index].values[0] + ".png",
+                "image": self.images_ids.iloc[index].values[0] + ".png",
                 "similarity": 1 - distances[0][i]
             }
             for i, index in enumerate(indices[0])
