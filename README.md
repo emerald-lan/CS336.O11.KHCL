@@ -46,31 +46,22 @@ The dataset and necessary files will be downloaded and prepare automatically by 
 python setup.py
 ```
 
-The dataset and files will be put in ./data and should have the following structure:
+After the running of **setup.py** is done, the **splited_fashionIQ** folder (containings images for retrieval purposes) and **finetuned_RN50.pt** file will be put in ./ (or your root repo name) and should have the following structure:
 
 ```
-root
-└───  data
-      └─── features          
-      └───  splited_fashionIQ
-        └─── train
-                | 978980539X.png
-                | 9789841655.png
-                | 9822490682.png
-                | ...
-        
-        └─── val
-                | B000BQ0A4E.png
-                | B000AS2OVA.png
-                | B000AY2892.png
-                | ...
-        └─── test
-                | 9789812442.png
-                | 9789814232.png
-                | 9800531750.png
-                | ...
-            
-      └─── finetuned_RN50.pt
+./ (or root)       
+└───  splited_fashionIQ
+  └─── val
+          | B000BQ0A4E.png
+          | B000AS2OVA.png
+          | B000AY2892.png
+          | ...
+  └─── test
+          | 9789812442.png
+          | 9789814232.png
+          | 9800531750.png
+          | ...   
+└─── finetuned_RN50.pt
 | ...
 ```
 
@@ -81,8 +72,7 @@ Here's a brief description of each and every file
 * ```features_extracting.py```: Feature extraction file
 * ```data_preprocessing.py```: Data preprocessing file
 * ```app.py```: Flask server file
-
-
+* ```search.py```: Search for the top-k result file
 
 ### Run the Demo
 Start the server and run the demo using the following command
