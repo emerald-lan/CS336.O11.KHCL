@@ -7,4 +7,6 @@ pip install -r requirements.txt
 
 python download_resources.py
 
+streamlit run app.py
+
 

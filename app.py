@@ -2,7 +2,11 @@ import os
 import streamlit as st
 from PIL import Image
 from streamlit_image_select import image_select
-from search import search_top_k
+from src.utils.search import search_top_k
+from config import *
+
+import sys
+sys.path.insert(0, UTILS_DIR)
 
 # Hide the streamlit hamburger and footer
 st.markdown("""
@@ -79,7 +83,7 @@ def main():
     source = True
     
     st.title("Mineral Fashion Image Retrieval System")   
-    images, images_name = load_first_images("./splited_fashionIQ/val")
+    images, images_name = load_first_images(DATASET_DIR / "val")
     
     # Adđ select box to choose whether using uploaded images or recommended ones
     selected_image_source = st.selectbox("Select image source:", ["Upload", "Recommended gallery"])

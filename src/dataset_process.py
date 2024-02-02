@@ -8,15 +8,14 @@ from PIL import Image
 from typing import List
 import shutil
 from utils.indexer import VectorIndexer
+from config import *
+
 import warnings
 warnings.filterwarnings('ignore')
-import sys
 
-# Get the root directory of the project
-root_dir = Path(__file__).parent.absolute()
-sys.path.insert(0, root_dir)
+
 device = "cuda" if torch.cuda.is_available() else "cpu"
-clip_model, preprocess = load_clip_model("finetuned_RN50.pt")
+clip_model, preprocess = load_clip_model(MODEL_PATH)
 
 def load_dataset(dataset_path: Path) -> List[str]:
     if not dataset_path.exists():
@@ -55,21 +54,21 @@ def remove_batch_features(batch_features_path: Path) -> None:
 
 
 def main():
-    val_dataset_path = root_dir / Path("splited_fashionIQ") / "val"
+    val_dataset_path = DATASET_DIR / "val"
     val_images_files = load_dataset(val_dataset_path)
 
-    features_file = root_dir / Path("data") / "features.npy"
-    images_ids_file = root_dir / Path("data") / "images_ids.csv"
+    features_file = FEATURES_DIR / "features.npy"
+    images_ids_file = FEATURES_DIR / "images_ids.csv"
 
     if features_file.exists() and images_ids_file.exists():
         index = VectorIndexer(features_file, images_ids_file)
         index.build_index()
-        index.save_index(root_dir / Path("data") / "dataset.index")
-        print(f"Index saved in {Path('data') / 'dataset.index'}")
+        index.save_index(FEATURES_DIR / "dataset.index")
+        print(f"Index saved in {FEATURES_DIR / 'dataset.index'}")
         return
 
-    batch_size = 4
-    batch_features_path = root_dir / Path("data") / "batch_features"
+    batch_size = FEATURES_PER_BATCH
+    batch_features_path = DATA_DIR / "batch_features"
     if batch_features_path.exists() and batch_features_path.is_dir():
         shutil.rmtree(batch_features_path)
     batch_features_path.mkdir(parents=True, exist_ok=True)
@@ -88,11 +87,16 @@ def main():
     features_list = [np.load(file) for file in sorted(batch_features_path.glob("*.npy"))]
     features = np.concatenate(features_list).astype(np.float32) # (n_images, 1024)
     np.save(features_file, features)
-    print(f"Features saved in {Path('data') / 'features.npy'}")
+    print(f"Features saved in {features_file}")
 
     images_ids = pd.concat([pd.read_csv(ids_file) for ids_file in sorted(batch_features_path.glob("*.csv"))])
     images_ids.to_csv(images_ids_file, index=False)
-    print(f"Images ids saved in {Path('data') / 'images_ids.csv'}")
+    print(f"Images ids saved in {images_ids_file}")
+
+    index = VectorIndexer(features_file, images_ids_file)
+    index.build_index()
+    index.save_index(FEATURES_DIR / "dataset.index")
+    print(f"Index saved in {FEATURES_DIR / 'dataset.index'}")
 
     remove_batch_features(batch_features_path)
 
