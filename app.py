@@ -1,20 +1,12 @@
-import streamlit as st
-import torch
-from PIL import Image
-import cv2
-import torch
-from tqdm import tqdm
-import clip
-from torchvision.transforms import functional as F
-from transformers import CLIPProcessor, CLIPModel
-from streamlit_image_select import image_select
-
 import os
-import requests
-from zipfile import ZipFile
-from io import BytesIO
-import gdown
-import rarfile
+import streamlit as st
+from PIL import Image
+from streamlit_image_select import image_select
+from src.utils.search import search_top_k
+from config import *
+
+import sys
+sys.path.insert(0, UTILS_DIR)
 
 # Hide the streamlit hamburger and footer
 st.markdown("""
@@ -30,68 +22,68 @@ st.markdown("""
 <\style>
 """, unsafe_allow_html=True)
 
-
-# # Load pre-trained CLIP model and processor
-# model = CLIPModel.from_pretrained("openai/clip-vit-base-patch16")
-# processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch16")
-
-# # Function to preprocess input image
-# def preprocess_image(image):
-#     image = image.resize((224, 224))
-#     image = F.to_tensor(image)
-#     image = F.normalize(image, mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
-#     image = image.unsqueeze(0)
-#     return image
-
-def download_dataset():
-    dataset_name = "splited_fashionIQ"  # Replace with your desired dataset folder name
-    folder_path = "./"
-    dataset_url = 'https://drive.google.com/file/d/1B_ahBg0B7nUJE2dYROxdpXpqicMfcyu7/view?usp=sharing'
-    rar_path = "splited_fashionIQ.rar"
-    extract_path = os.path.join(folder_path, dataset_name)
-
-    # Check if the folder already exists
-    if os.path.exists(extract_path):     
-        return
-    
-    st.text("Downloading the dataset. Please wait...")
-    gdown.download(dataset_url, 'splited_fashionIQ.rar', quiet=False, fuzzy=True)
-    st.success("Download completed.")
-
-    # Extract the downloaded RAR file
-    with rarfile.RarFile(rar_path, 'r') as rf:
-        rf.extractall(extract_path)
-
-    # Remove the downloaded RAR file
-    os.remove(rar_path)
-
-    st.success(f"Extraction completed. Path = {folder_path}")
+# This markdown makes the button with primary kind look like a clickable line of text
+st.markdown(
+    """
+    <style>
+    button[kind="primary"] {
+        background: none!important;
+        border: none;
+        padding: 0!important;
+        color: black !important;
+        text-decoration: none;
+        cursor: pointer;
+        border: none !important;
+    }
+    button[kind="primary"]:hover {
+        text-decoration: none;
+        color: black !important;
+    }
+    button[kind="primary"]:focus {
+        outline: none !important;
+        box-shadow: none !important;
+        color: black !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 def load_first_images(folder_path):
     # Đọc danh sách tất cả các tệp hình ảnh trong thư mục
     image_files = [f for f in os.listdir(folder_path) if f.lower().endswith(('.png', '.jpg'))]
 
-    # Lấy danh sách 50 ảnh đầu tiên
-    selected_images_files = image_files[:20]
+    # Lấy danh sách 60 ảnh đầu tiên
+    selected_images_files = image_files[:60]
     images = []
-    images_name = []
+    image_names = []
     for image_file in selected_images_files:
         image_path = os.path.join(folder_path, image_file)
         image = Image.open(image_path)
         images.append(image)
-        images_name.append(image_file)
+        image_names.append(image_file)
         
-    return images, images_name
+    return images, image_names
+
+def display_images(label: str, images: list, image_names: list, use_container_width=False):
+    img = image_select(
+            label = label,
+            images = images,
+            captions = image_names, 
+            use_container_width=False
+        )          
+    return img
 
 # Streamlit app
-def main():
-    download_dataset()
-    
+def main():   
+    # if st.button("Click me", type="primary"):
+    #     st.write("Clicked")
+     
     query_image = None
     source = True
     
     st.title("Mineral Fashion Image Retrieval System")   
-    images, images_name = load_first_images("splited_fashionIQ/test")
+    images, images_name = load_first_images(DATASET_DIR / "val")
     
     # Adđ select box to choose whether using uploaded images or recommended ones
     selected_image_source = st.selectbox("Select image source:", ["Upload", "Recommended gallery"])
@@ -101,38 +93,39 @@ def main():
         query_image = uploaded_image
         
     elif selected_image_source == "Recommended gallery": 
-        img = image_select(
-            label = "OR Choose one",
-            images = images,
-            captions = images_name, 
-            use_container_width=False
-        )          
+        img = display_images("OR Choose one", images, images_name)
         query_image = img
         source = False
+        
+    # col1, col2 = st.columns(2)
+    # # Thêm text_input vào cột 1
+    # with col1:
+    #     query_text = st.text_input("Enter a description for retrieval", max_chars=50)
+    # # Thêm slider vào cột 2
+    # with col2:
+    #     top_k = st.slider("How many results do you want to have?", min_value=10, max_value=100, value=50, step=10)
 
     if query_image is not None:
         if(source):
-            st.write("Querry image: ")
+            query_image = Image.open(uploaded_image)
             st.image(query_image, width=300)    
         else:
-            st.markdown("---")
-            st.write("Querry image: " + os.path.basename(query_image.filename))
+            st.markdown("---") 
+            st.write("Query image: " + os.path.basename(query_image.filename))
             
-        text_input = st.text_input("Enter a description for retrieval", max_chars=50)
+        query_text = st.text_input("Enter a description for retrieval", max_chars=50)
+        top_k = st.slider("How many results do you want to have?", min_value=10, max_value=100, value=50, step=10)
         search_btt = st.button(label="Search")
         
-        # image = Image.open(uploaded_image)
-        # processed_image = preprocess_image(image)
-            
         if search_btt:
             # Check if text_input is empty
-            if not text_input.strip():
-                st.error("Error: Description cannot be empty. Please enter a description.")     
-            else:
-                # display_images("images")  
-                st.error("200 OK")       
+            if not query_text.strip():
+                st.error("Error: Description cannot be empty. Please enter a valid description.")     
+            else:            
+                result_images, result_filenames = search_top_k(query_image, str(query_text), top_k)
+                # st.write("Here are the top " + str(top_k) + " results")
+                title = "Here are the top " + str(top_k) + " results"
+                display_images(title, result_images, result_filenames)    
                 
-
 if __name__ == "__main__":
     main()
-
