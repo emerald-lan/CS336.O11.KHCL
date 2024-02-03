@@ -51,3 +51,18 @@ def search_top_k(query_image, query_text: str, topk=50):
         images.append(Image.open(val_dataset_path / image_name))
     
     return images, image_names
+
+def rerank(query_features: np.ndarray, topk=50):
+    val_dataset_path = DATASET_DIR / "val"
+
+    result = index.search(query_features, k=topk)
+    
+    image_names = []
+    images = []
+    
+    for obj in result:
+        image_name = obj['image']
+        image_names.append(image_name) 
+        images.append(Image.open(val_dataset_path / image_name))
+    
+    return images, image_names

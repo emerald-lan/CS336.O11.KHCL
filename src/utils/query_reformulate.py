@@ -1,9 +1,18 @@
 import numpy as np
 from typing import List
+from PIL import Image, JpegImagePlugin
+import torch
+from .load_clip import load_clip_model
+from config import *
+from PIL import Image
 
 alpha = 1
 beta = 1
 gamma = 1
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+clip_model, preprocess = load_clip_model(MODEL_PATH)
+
 
 def reformulate_query(query_features: np.ndarray, relevant_features: List[np.ndarray], irrelevant_features: List[np.ndarray]) -> np.ndarray:
     if relevant_features:
@@ -21,3 +30,11 @@ def reformulate_query(query_features: np.ndarray, relevant_features: List[np.nda
     reformulated_query = alpha * query_features + beta * sum_relevant - gamma * sum_irrelevant
 
     return reformulated_query
+
+def extract_result_features(image: Image) -> np.ndarray:   
+    image_preprocessed = preprocess(image).unsqueeze(0).to(device)
+
+    with torch.no_grad():
+        image_features = clip_model.encode_image(image_preprocessed)
+
+    return image_features.cpu().numpy()
