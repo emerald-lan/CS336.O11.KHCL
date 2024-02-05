@@ -15,7 +15,6 @@ st.set_page_config(
     layout="wide"
 )
 
-
 def paginator(label, items, items_per_page=20):
     # Display a pagination selectbox in the specified location.
     items = list(items)
@@ -62,32 +61,55 @@ def display_results(result_images, result_filenames, top_k = 50):
     resized_result_images = [image.resize(target_size) for image in result_images]
 
     # Display the results with 8 images per row
-    n_cols = 8  # Number of images per row
+    n_cols = 5  # Number of images per row
     n_rows = 1 + top_k // n_cols
     rows = [st.container() for _ in range(n_rows)]
     cols_per_row = [r.columns(n_cols) for r in rows]
     cols = [column for row in cols_per_row for column in row]
 
-    for image_index, (image, filename) in enumerate(zip(resized_result_images, result_filenames)):
-        cols[image_index].image(image, caption=filename)
+    feedback_values = {}
+
+    def on_change_feedback():
+        st.session_state.is_feedback = True
+
+    for idx, (image, filename) in enumerate(zip(resized_result_images, result_filenames)):
+        cols[idx].image(image, caption=filename)
+        # Add a dropdown menu for each image
+        feedback_values[idx] = cols[idx].selectbox("Your feedback", ("none", "relevant", "irrelevant"), key=filename, on_change=on_change_feedback)
+
+    return feedback_values
+
+def map_feedback_values_to_images(feedback_values, result_images):
+    rel_images = [image for idx, image in enumerate(result_images) if feedback_values[idx] == "relevant"]
+    irr_images = [image for idx, image in enumerate(result_images) if feedback_values[idx] == "irrelevant"]
+    return rel_images, irr_images
 
 # Streamlit app
 st.title("Mineral Fashion Image Retrieval System")
 
+# Initialize session state variables
+st.write(st.session_state)
+if "result_images" not in st.session_state:
+    st.session_state.result_images = []
+if "result_filenames" not in st.session_state:
+    st.session_state.result_filenames = []
+if "feedback_values" not in st.session_state:
+    st.session_state.feedback_values = {}
+if "is_feedback" not in st.session_state:
+    st.session_state.is_feedback = False
+
+
 # Query image
 with st.sidebar:
     st.header("Query Panel")
-    selected_image_source = st.selectbox("Select image source:", ("Upload", "Recommended gallery"))
+    selected_image_source = st.selectbox("Select image source", ("Upload", "Recommended gallery"))
     if selected_image_source == "Upload":
         query_image = st.file_uploader("Upload your query image", type=["jpg", "png", "jpeg"])
-        query_image = Image.open(query_image)
 
     elif selected_image_source == "Recommended gallery":
         gallery = load_gallery()
-        # st.write(gallery.__len__())
         page_number = paginator("Pagination", gallery)
         batch = load_batch(page_number, gallery)
-        # st.write(batch)
 
 if selected_image_source == "Upload":
     pass
@@ -100,10 +122,9 @@ elif selected_image_source == "Recommended gallery":
 if query_image is not None:
     st.sidebar.image(query_image, width=200)
     if selected_image_source == "Upload":
-        pass
+        query_image = Image.open(query_image)
     elif selected_image_source == "Recommended gallery":
         query_obj = [obj for obj in batch if obj['candidate'] == query_image_name][0]
-
 
     # Query text
     with st.sidebar:
@@ -118,15 +139,30 @@ if query_image is not None:
 
         # top_k slider
         top_k = st.slider("How many results do you want to receive?", min_value=10, max_value=100, value=50, step=10)
-        search_btt = st.sidebar.button("Search", type="primary", use_container_width=True)
-
+        def on_click_search():
+            st.session_state.is_feedback = False
+            st.session_state.result_images = []
+            st.session_state.result_filenames = []
+            st.session_state.feedback_values = {}
+        search_btt = st.sidebar.button("Search", type="primary", use_container_width=True, on_click=on_click_search)
+        if st.session_state.is_feedback == True:
+            search_btt = True
 
     if search_btt:
         # Check if text_input is empty
         if not query_text.strip():
             st.toast("Error: Description cannot be empty. Please enter a valid description.")
-        else:            
+        else:
             # Perform the search and display the results
-            result_images, result_filenames = search(query_image, str(query_text), top_k)
+            st.session_state.result_images, st.session_state.result_filenames = search(query_image, str(query_text), top_k)
             st.write("Here are the top " + str(top_k) + " results")
-            display_results(result_images, result_filenames, top_k)
+            st.session_state.feedback_values = display_results(st.session_state.result_images, st.session_state.result_filenames, top_k)
+            st.write(st.session_state.feedback_values)
+
+    # Add a submit button for feedback
+    submit_btt = st.sidebar.button("Submit Feedback")
+    if submit_btt:
+        # Process the feedback values here
+        rel_images, irr_images = map_feedback_values_to_images(st.session_state.feedback_values, st.session_state.result_images)
+        st.image(rel_images)
+        st.image(irr_images)
