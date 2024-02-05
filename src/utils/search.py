@@ -6,7 +6,7 @@ from PIL import Image
 import matplotlib.pyplot as plt
 from .load_clip import load_clip_model
 from .indexer import VectorIndexer
-from config import *
+from .config import *
 
 
 device = "cuda" if torch.cuda.is_available() else "cpu"

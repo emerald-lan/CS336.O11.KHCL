@@ -3,7 +3,7 @@ import torch
 from PIL import Image
 from typing import Tuple, List
 from .preprocessing import targetpad_transform
-from config import *
+from .config import *
 
 
 device = "cuda" if torch.cuda.is_available() else "cpu"

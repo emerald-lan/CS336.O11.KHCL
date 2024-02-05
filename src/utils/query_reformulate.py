@@ -1,9 +1,9 @@
 import numpy as np
 from typing import List
-from PIL import Image, JpegImagePlugin
+from PIL import Image
 import torch
 from .load_clip import load_clip_model
-from config import *
+from .config import *
 from PIL import Image
 
 alpha = 1
