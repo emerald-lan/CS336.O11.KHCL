@@ -3,92 +3,58 @@ import random
 import json
 import streamlit as st
 from PIL import Image
+from pathlib import Path
 from streamlit_image_select import image_select
-from src.utils.search import search_top_k
-from config import *
+from src.utils.search import *
+from src.utils.query_reformulate import *
+from src.utils.config import *
 
-import sys
-sys.path.insert(0, UTILS_DIR)
+# Set page config
+st.set_page_config(
+    page_title="Mineral Fashion Image Retrieval System",
+    layout="wide"
+)
 
-st.set_page_config(layout="wide")
-# Hide the streamlit hamburger and footer
-st.markdown("""
-<style>
-.css-1rs6os.edgvbvh3
-{
-    visibility: hidden;
-}
-.css-cio0dv.egzxvld1
-{
-    visibility: hidden;
-}
-<\style>
-""", unsafe_allow_html=True)
 
-# # This markdown makes the button with primary kind look like a clickable line of text
-# st.markdown(
-#     """
-#     <style>
-#     button[kind="primary"] {
-#         background: none!important;
-#         border: none;
-#         padding: 0!important;
-#         color: black !important;
-#         text-decoration: none;
-#         cursor: pointer;
-#         border: none !important;
-#     }
-#     button[kind="primary"]:hover {
-#         text-decoration: none;
-#         color: black !important;
-#     }
-#     button[kind="primary"]:focus {
-#         outline: none !important;
-#         box-shadow: none !important;
-#         color: black !important;
-#     }
-#     </style>
-#     """,
-#     unsafe_allow_html=True,
-# )
+def paginator(label, items, items_per_page=20):
+    # Display a pagination selectbox in the specified location.
+    items = list(items)
+    n_pages = len(items)
+    n_pages = (len(items) - 1) // items_per_page + 1
+    page_format_func = lambda i: "Page %s" % (i+1)
+    page_number = st.sidebar.selectbox(label, range(n_pages), index=0, format_func=page_format_func)
+    return page_number
 
-def load_images_statics(folder_path, begin=0, top_k=25):
-    # Đọc danh sách tất cả các tệp hình ảnh trong thư mục
-    image_files = [f for f in os.listdir(folder_path) if f.lower().endswith(('.png', '.jpg'))]
+@st.cache_data
+def load_batch(page_number, items, items_per_page=20):
+    min_index = page_number * items_per_page
+    max_index = min_index + items_per_page
+    return items[min_index : max_index]
 
-    selected_images_files = image_files[begin:(begin+top_k)]
-    images = []
-    image_names = []
-    for image_file in selected_images_files:
-        image_path = os.path.join(folder_path, image_file)
-        image = Image.open(image_path)
-        images.append(image)
-        image_names.append(image_file)
-        
-    return images, image_names
 
-def load_queries_rcm(folder_path, image_filename):
-    queries = None
-    image_name, image_extention = os.path.splitext(image_filename)
-    
-    json_path = os.path.join(folder_path, "filtered_gallery.json")
-    with open(json_path, 'r') as file:
-        query_list = json.load(file)    
-    
-    for obj in query_list:
-        if obj['candidate'] == image_name:
-            queries = obj['captions']
-            break
-    return queries
-    
-def display_images_rcm(label: str, images: list, image_names: list, use_container_width=False):
+@st.cache_data
+def load_gallery():
+    with open(FILTERED_JSON, 'r') as file:
+        gallery = json.load(file)
+    return gallery
+
+
+def display_images_rcm(label: str, batch, use_container_width=False):
+    images = [Path(DATASET_DIR / 'val' / str(obj['candidate'] + '.png')) for obj in batch]
+    images_name = [str(obj['candidate'] + '.png') for obj in batch]
+
     img = image_select(
             label = label,
             images = images,
-            captions = image_names, 
+            captions = images_name, 
             use_container_width=False
         )          
     return img
+
+@st.cache_data
+def search(_query_image, query_text, top_k=50):
+    result_images, result_filenames = search_top_k(_query_image, query_text, top_k)
+    return result_images, result_filenames
 
 def display_results(result_images, result_filenames, top_k = 50):
     # Resize all images to the same dimensions
@@ -106,65 +72,61 @@ def display_results(result_images, result_filenames, top_k = 50):
         cols[image_index].image(image, caption=filename)
 
 # Streamlit app
-def main():   
-    query_image = None
-    source = True
-    st.title("Mineral Fashion Image Retrieval System")   
-    
-    col1, col2 = st.columns(2)
-    # Add select box to choose whether using uploaded images or recommended ones
-    selected_image_source = col1.selectbox("Select image source:", ["Upload", "Recommended gallery"])
+st.title("Mineral Fashion Image Retrieval System")
 
+# Query image
+with st.sidebar:
+    st.header("Query Panel")
+    selected_image_source = st.selectbox("Select image source:", ("Upload", "Recommended gallery"))
     if selected_image_source == "Upload":
-        uploaded_image = col1.file_uploader("Please upload your query image!", type=["jpg", "png"])
-        query_image = uploaded_image
-        
-    elif selected_image_source == "Recommended gallery":
-        source = False
-        with col2:
-            n_rcm = 20
-            begin_index = col2.slider("Slide this for different galleries", min_value=0, max_value=14890-n_rcm, value=0, step=n_rcm)
-            images, images_name = load_images_statics("./splited_fashionIQ/val", begin_index, n_rcm)
-            img = display_images_rcm("OR Choose one", images, images_name)
-            
-        query_image = img        
-        
-    with col1:
-        cola, colb = st.columns(2)
-        if query_image is not None:
-            with cola:
-                if source:
-                    query_image = Image.open(uploaded_image)
-                    query_image_filename = os.path.basename(query_image.filename)
-                    st.markdown("Query image: **" + query_image_filename + "**")
-                    st.image(query_image, width=300)
-                else:
-                    query_image_filename = os.path.basename(query_image.filename)
-                    st.markdown("Query image: **" + query_image_filename + "**")
-                    st.image(query_image, width=300)
-            
-            queries_rcm = load_queries_rcm("./", query_image_filename)
-            
-            if queries_rcm:
-                colb.markdown("**Recommended queries:**")
-                for idx, query in enumerate(queries_rcm, start=1):
-                    colb.write(f"Query {idx}: {query}")
-                    
-            query_text = st.text_input("Enter a description for retrieval", max_chars=50)
-            top_k = st.slider("How many results do you want to have?", min_value=10, max_value=100, value=50, step=10)
-            search_btt = st.button(label="Search")
+        query_image = st.file_uploader("Upload your query image", type=["jpg", "png", "jpeg"])
+        query_image = Image.open(query_image)
 
-    # Check if search_btt is defined before using it
-    if 'search_btt' in locals():
-        if search_btt:
-            # Check if text_input is empty
-            if not query_text.strip():
-                col1.error("Error: Description cannot be empty. Please enter a valid description.")
-            else:            
-                # Perform the search and display the results
-                result_images, result_filenames = search_top_k(query_image, str(query_text), top_k)
-                st.write("Here are the top " + str(top_k) + " results")
-                display_results(result_images, result_filenames, top_k)
-                     
-if __name__ == "__main__":
-    main()
+    elif selected_image_source == "Recommended gallery":
+        gallery = load_gallery()
+        # st.write(gallery.__len__())
+        page_number = paginator("Pagination", gallery)
+        batch = load_batch(page_number, gallery)
+        # st.write(batch)
+
+if selected_image_source == "Upload":
+    pass
+elif selected_image_source == "Recommended gallery":
+    query_image_path = display_images_rcm("Choose one of the recommended images:", batch)
+    query_image_name = query_image_path.name.split('.')[0]
+    query_image = Image.open(query_image_path)
+
+# Show query image
+if query_image is not None:
+    st.sidebar.image(query_image, width=200)
+    if selected_image_source == "Upload":
+        pass
+    elif selected_image_source == "Recommended gallery":
+        query_obj = [obj for obj in batch if obj['candidate'] == query_image_name][0]
+
+
+    # Query text
+    with st.sidebar:
+        query_text = st.text_input("Enter a description for retrieval", max_chars=76)
+        if selected_image_source == "Upload":
+            pass
+        elif selected_image_source == "Recommended gallery":
+            # Recommended text queries
+            st.write("Recommended descriptions:")
+            for text in query_obj['captions']:
+                st.write("`" + text + "`")
+
+        # top_k slider
+        top_k = st.slider("How many results do you want to receive?", min_value=10, max_value=100, value=50, step=10)
+        search_btt = st.sidebar.button("Search", type="primary", use_container_width=True)
+
+
+    if search_btt:
+        # Check if text_input is empty
+        if not query_text.strip():
+            st.toast("Error: Description cannot be empty. Please enter a valid description.")
+        else:            
+            # Perform the search and display the results
+            result_images, result_filenames = search(query_image, str(query_text), top_k)
+            st.write("Here are the top " + str(top_k) + " results")
+            display_results(result_images, result_filenames, top_k)

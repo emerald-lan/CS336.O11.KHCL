@@ -9,4 +9,4 @@ python download_resources.py
 
 streamlit run app.py
 
-
+KeyError: 'src.utils.search' -> rerun app
