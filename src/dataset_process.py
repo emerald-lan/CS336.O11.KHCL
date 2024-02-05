@@ -8,7 +8,7 @@ from PIL import Image
 from typing import List
 import shutil
 from utils.indexer import VectorIndexer
-from config import *
+from utils.config import *
 
 import warnings
 warnings.filterwarnings('ignore')
