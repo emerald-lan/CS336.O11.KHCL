@@ -1,12 +1,10 @@
 python -m venv .venv
 
-source .venv/bin/activate
-or .venv/Scripts/activate
+source .venv/bin/activate (Linux/Mac)
+or .venv/Scripts/activate (Windows)
 
 pip install -r requirements.txt
 
-python download_resources.py
+python src/download_resources.py
 
 streamlit run app.py
-
-KeyError: 'src.utils.search' -> rerun app
