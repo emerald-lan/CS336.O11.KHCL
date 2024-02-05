@@ -16,31 +16,31 @@ st.set_page_config(
 )
 
 def paginator(label, items, items_per_page=20):
-    # Display a pagination selectbox in the specified location.
+    # This function creates a pagination selectbox in the sidebar.
     items = list(items)
-    n_pages = len(items)
-    n_pages = (len(items) - 1) // items_per_page + 1
-    page_format_func = lambda i: "Page %s" % (i+1)
-    page_number = st.sidebar.selectbox(label, range(n_pages), index=0, format_func=page_format_func)
+    n_pages = (len(items) - 1) // items_per_page + 1  # Calculate the number of pages
+    page_format_func = lambda i: "Page %s" % (i+1)  # Format the page numbers
+    page_number = st.sidebar.selectbox(label, range(n_pages), index=0, format_func=page_format_func)  # Create the selectbox
     return page_number
 
 @st.cache_data
 def load_batch(page_number, items, items_per_page=20):
+    # This function loads a batch of items for the given page number.
     min_index = page_number * items_per_page
     max_index = min_index + items_per_page
-    return items[min_index : max_index]
-
+    return items[min_index : max_index]  # Return the items for the current page
 
 @st.cache_data
 def load_gallery():
+    # This function loads the gallery from a JSON file.
     with open(FILTERED_JSON, 'r') as file:
         gallery = json.load(file)
     return gallery
 
-
 def display_images_rcm(label: str, batch, use_container_width=False):
-    images = [Path(DATASET_DIR / 'val' / str(obj['candidate'] + '.png')) for obj in batch]
-    images_name = [str(obj['candidate'] + '.png') for obj in batch]
+    # This function displays a batch of images.
+    images = [Path(DATASET_DIR / 'val' / str(obj['candidate'] + '.png')) for obj in batch]  # Load the images
+    images_name = [str(obj['candidate'] + '.png') for obj in batch]  # Get the image names
 
     img = image_select(
             label = label,
@@ -52,29 +52,24 @@ def display_images_rcm(label: str, batch, use_container_width=False):
 
 @st.cache_data
 def search(_query_image, query_text, top_k=50):
+    # This function performs a search and returns the top k results.
     result_images, result_filenames = search_top_k(_query_image, query_text, top_k)
     return result_images, result_filenames
 
 def display_results(result_images, result_filenames, top_k = 50):
-    # Resize all images to the same dimensions
-    target_size = (300, 300)
-    resized_result_images = [image.resize(target_size) for image in result_images]
+    # This function displays the search results.
+    target_size = (300, 300)  # The target size for the images
+    resized_result_images = [image.resize(target_size) for image in result_images]  # Resize the images
 
     # Display the results with 8 images per row
-    n_cols = 5  # Number of images per row
-    n_rows = 1 + top_k // n_cols
-    rows = [st.container() for _ in range(n_rows)]
-    cols_per_row = [r.columns(n_cols) for r in rows]
-    cols = [column for row in cols_per_row for column in row]
+    n_cols = 8  # Number of images per row
+    n_rows = 1 + top_k // n_cols  # Calculate the number of rows
+    rows = [st.container() for _ in range(n_rows)]  # Create the rows
+    cols_per_row = [r.columns(n_cols) for r in rows]  # Create the columns for each row
+    cols = [column for row in cols_per_row for column in row]  # Flatten the list of columns
 
     for idx, (image, filename) in enumerate(zip(resized_result_images, result_filenames)):
-        cols[idx].image(image, caption=filename)
-
-
-def map_feedback_values_to_images(feedback_values, result_images):
-    rel_images = [image for idx, image in enumerate(result_images) if feedback_values[idx] == "relevant"]
-    irr_images = [image for idx, image in enumerate(result_images) if feedback_values[idx] == "irrelevant"]
-    return rel_images, irr_images
+        cols[idx].image(image, caption=filename)  # Display each image
 
 # Streamlit app
 st.title("Mineral Fashion Image Retrieval System")

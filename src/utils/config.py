@@ -1,6 +1,6 @@
 from pathlib import Path
 
-DATASET_URL = 'https://drive.google.com/file/d/1D9aydHJeKCv4ZU8qH67ZZ2b7uoMc7uie/view?usp=sharing'
+DATASET_URL = 'https://drive.google.com/file/d/1D2uc_iR6S2pE7WGPqwNJNrA4X7NC1hhv/view?usp=sharing'
 MODEL_URL = 'https://drive.google.com/file/d/1K8QuwOpoufjx9Y1_56vrk2ynd6Y3FjZW/view?usp=sharing'
 QUERY_URL = 'https://drive.google.com/file/d/1wt8I5zeHysjQNuLYJLBGHn39g_F9LE5S/view?usp=sharing'
 
